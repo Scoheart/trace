@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Database, Github, Layers3, LockKeyhole, RadioTower, Terminal, Workflow } from 'lucide-react';
+import { Activity, Database, ExternalLink, Layers3, LockKeyhole, RadioTower, Terminal, Workflow } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Badge } from './ui/badge';
 
@@ -40,7 +40,7 @@ export function AppShell({children}:{children:React.ReactNode}){
           <div className="mt-3 flex items-center gap-2 border-t border-slate-800 pt-3 text-[11px] text-slate-400"><LockKeyhole size={13}/> AES-GCM encrypted</div>
         </div>
         <div className="hidden md:absolute md:right-0 md:bottom-0 md:left-0 md:block md:border-t md:border-slate-800 md:px-5 md:py-5">
-          <a href="https://github.com/Scoheart/trace" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-slate-400 hover:text-cyan-200"><Github size={15}/> Scoheart/trace</a>
+          <a href="https://github.com/Scoheart/trace" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-slate-400 hover:text-cyan-200"><ExternalLink size={15}/> Scoheart/trace</a>
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
