@@ -1,0 +1,6 @@
+{"timestamp":"2026-10-24T09:00:00Z","type":"session_meta","payload":{"id":"demo-codex-001","cwd":"/synthetic/project"}}
+{"timestamp":"2026-10-24T09:00:01Z","type":"event_msg","payload":{"type":"user_message","message":"Fix the failing login test"}}
+{"timestamp":"2026-10-24T09:00:03Z","type":"response_item","payload":{"type":"function_call","name":"shell_command","call_id":"call_demo_1","arguments":"{\"command\":\"npm test\"}"}}
+{"timestamp":"2026-10-24T09:00:04Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call_demo_1","output":"1 test failing: login"}}
+{"timestamp":"2026-10-24T09:00:08Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":851,"output_tokens":220}}}}
+{"timestamp":"2026-10-24T09:00:09Z","type":"event_msg","payload":{"type":"agent_message","message":"Found the missing validation."}}
