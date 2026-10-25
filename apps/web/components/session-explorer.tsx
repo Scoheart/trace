@@ -16,6 +16,8 @@ import {Badge} from './ui/badge';
 import {Card} from './ui/card';
 import {Input,Select} from './ui/form-controls';
 import {EmptyState} from './empty-state';
+import {Trace, TraceLine, TraceIcon, TraceTitle, TraceDescription} from './ui/trace';
+import {ObservabilityPanel} from './observability-panel';
 
 type KindFilter='all'|'tool'|'conversation'|'usage'|'errors'|'files';
 const categorized:Record<Exclude<KindFilter,'all'>,string[]>={
@@ -182,22 +184,33 @@ export function SessionExplorer(){
         {!selected?<div className="flex min-h-80 flex-col items-center justify-center gap-3 px-6 text-center"><PlayCircle size={29} className="text-slate-600"/><p className="font-semibold">Select a captured run</p><p className="max-w-xs text-xs leading-6 text-slate-500">Explore model messages, tool inputs and outputs, errors and links to original evidence.</p></div>:
         <>
           {coverage&&<div className="m-4 rounded-lg border border-cyan-500/15 bg-cyan-400/5 px-4 py-3"><div className="flex items-center gap-2 text-xs font-semibold text-cyan-200"><ShieldCheck size={14}/> Evidence provenance</div><p className="mt-1 text-xs leading-5 text-slate-400">Observed: {observed.join(', ')||'none'}. Categories not observed remain unverified, not assumed absent.</p></div>}
+          <ObservabilityPanel events={events} totalEvents={totalEvents} hasMore={hasMore}/>
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 px-4 pb-4">
             <div className="relative min-w-[180px] flex-1"><Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-500"/><Input aria-label="Search loaded events" placeholder="Search loaded events…" className="pl-9" value={query} onChange={e=>setQuery(e.target.value)}/></div>
             <Select aria-label="Filter event type" className="w-[150px]" value={kind} onChange={e=>setKind(e.target.value as KindFilter)}><option value="all">All events</option><option value="tool">Tools / MCP</option><option value="conversation">Messages</option><option value="usage">Tokens</option><option value="files">File changes</option><option value="errors">Errors</option></Select>
           </div>
-          <div className="max-h-[720px] overflow-y-auto">
-            {loadingTimeline&&events.length===0?<p className="p-8 text-center text-sm text-slate-400">Reconstructing observed trace…</p>:filtered.length===0?<div className="p-8 text-center text-sm text-slate-500">No events matching this filter in the loaded page.</div>:filtered.map((event,index)=>{
-              const Icon=iconByKind[event.kind]??FileText,active=selectedEvent?.eventId===event.eventId;
-              return <button key={event.eventId} type="button" onClick={()=>setSelectedEvent(event)} aria-pressed={active} className={cn('group flex w-full items-start gap-3 border-b border-slate-800/70 px-4 py-4 text-left hover:bg-slate-800/35',active&&'bg-cyan-400/8',event.parentEventId&&'pl-8')}>
-                <div className="relative flex shrink-0 flex-col items-center"><div className={cn('flex size-9 items-center justify-center rounded-xl border',active?'border-cyan-400/40 bg-cyan-500/15 text-cyan-300':'border-slate-700 bg-slate-800/70 text-slate-400')}><Icon size={16}/></div>{index!==filtered.length-1&&<div className="absolute top-10 h-6 w-px bg-slate-700"/>}</div>
-                <div className="min-w-0 flex-1"><div className="flex min-w-0 flex-wrap items-center gap-2"><span className="break-words text-sm font-semibold text-slate-200">{event.summary}</span><Badge tone={toneByKind[event.kind]??'muted'}>{event.kind.replaceAll('_',' ')}</Badge></div>
-                  <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-all font-mono text-xs leading-5 text-slate-400">{truncateText(stringifyContent(event.content),240)}</p>
-                  <div className="mt-3 flex flex-wrap gap-2"><span className="text-[11px] text-slate-500">{formatDate(event.occurredAt||event.observedAt)}</span><Badge>{event.evidenceRefs.length} evidence</Badge>{event.parentEventId&&<Badge tone="success">Linked result</Badge>}{event.conflicts.length>0&&<Badge tone="warning">Conflicting</Badge>}</div>
-                </div><ChevronRight size={14} className={cn('mt-2 shrink-0',active?'text-cyan-300':'text-slate-600 group-hover:text-slate-300')}/>
+          <Trace className="max-h-[720px] overflow-y-auto">
+            {loadingTimeline&&events.length===0?<p className="p-8 text-center text-sm text-slate-400">Reconstructing observed trace…</p>:filtered.length===0?<div className="p-8 text-center text-sm text-slate-500">No events matching this filter in the loaded page.</div>:filtered.map(event=>{
+              const Icon=iconByKind[event.kind]??FileText;
+              const active=selectedEvent?.eventId===event.eventId;
+              const isError=event.kind==='error'||event.kind==='invalid_json';
+              return <button key={event.eventId} type="button" onClick={()=>setSelectedEvent(event)} aria-pressed={active}
+                className={cn('group block w-full border-b border-slate-800/70 px-4 py-3 text-left transition-colors hover:bg-slate-800/35',active&&'bg-cyan-400/8',event.parentEventId&&'pl-8')}>
+                <TraceLine className="!flex !w-full items-center gap-2" status={isError?'error':undefined}>
+                  <TraceIcon className={cn('flex size-8 rounded-lg border p-1.5',active?'border-cyan-400/40 bg-cyan-500/15 text-cyan-300':'border-slate-700 bg-slate-800 text-slate-400')}><Icon size={16}/></TraceIcon>
+                  <TraceTitle className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-200">{event.summary}</TraceTitle>
+                  <TraceDescription className="shrink-0 text-[10px] text-slate-400">{event.kind.replaceAll('_',' ')}</TraceDescription>
+                  <ChevronRight size={14} className={cn('shrink-0',active?'text-cyan-300':'text-slate-500 group-hover:text-slate-300')}/>
+                </TraceLine>
+                <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-all pl-10 font-mono text-xs leading-5 text-slate-400">{truncateText(stringifyContent(event.content),240)}</p>
+                <div className="mt-2 flex flex-wrap gap-2 pl-10"><span className="text-[11px] text-slate-500">{formatDate(event.occurredAt||event.observedAt)}</span><Badge>{event.evidenceRefs.length} evidence</Badge>
+                  {event.parentEventId&&<Badge tone="success">Linked result</Badge>}
+                  {event.conflicts.length>0&&<Badge tone="warning">Conflicting evidence</Badge>}
+                  {event.identityStrength==='native_call'&&<Badge tone="info">Native call ID</Badge>}
+                </div>
               </button>;
             })}
-          </div>
+          </Trace>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 px-4 py-3 text-xs text-slate-500"><span>{filtered.length} shown · {events.length} loaded · {totalEvents??0} total</span>{hasMore&&<Button variant="outline" size="sm" disabled={loadingTimeline} onClick={()=>{if(selected&&!loadingMore.current)void fetchPage(selected.sessionId,events.length,requestId.current);}}><ArrowDown size={14}/>{loadingTimeline?'Loading…':'Load more'}</Button>}</div>
         </>}
       </Card>
