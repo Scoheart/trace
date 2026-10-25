@@ -1,4 +1,4 @@
-name: Agent Trace prototype verification
+name: Agent Trace framework verification
 on:
   push:
   pull_request:
@@ -10,6 +10,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm test
-      - run: node --check public/app.js
-      - run: node --check src/fusion.js
+      - name: Install framework dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify capture core
+        run: npm test
+      - name: Typecheck Next.js components
+        run: npm run typecheck
+      - name: Build Next.js app
+        run: npm run build

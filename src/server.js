@@ -37,7 +37,7 @@ async function receiveJSON(req) {
   if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('Expected JSON object');
   return data;
 }
-export async function createServer({storeDir,scanIntervalMs=5000}) {
+export async function createServer({storeDir,scanIntervalMs=5000,uiHandler=null}) {
   const store=await EvidenceStore.open(storeDir);
   const registry=await SourceRegistry.open(storeDir);
   const capture=new CaptureService({registry,storeDir,intervalMs:scanIntervalMs});
@@ -48,6 +48,11 @@ export async function createServer({storeDir,scanIntervalMs=5000}) {
       if(host!=='127.0.0.1'&&host!=='localhost')return respond(res,403,{error:'Untrusted Host header'});
       const url=new URL(req.url||'/', 'http://localhost');
       const pathname=url.pathname;
+      // Next.js owns every presentation route; the capture API stays local.
+      // The Host guard runs first and the /api boundary cannot be bypassed.
+      if(uiHandler && pathname !== '/api' && !pathname.startsWith('/api/')) {
+        return await uiHandler(req,res);
+      }
       const isWrite=['POST','PATCH','DELETE'].includes(req.method);
       const mutablePath=pathname==='/api/sources'||/^\/api\/sources\/[a-f0-9-]{36}(?:\/scan)?$/.test(pathname);
       if(isWrite&&!mutablePath)return respond(res,405,{error:'Method not allowed'});

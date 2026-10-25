@@ -1,97 +1,100 @@
-# Agent Trace — Local Full-Stack MVP
+# Agent Trace · Local Framework MVP
 
-A self-hosted, **single-user local Agent Trace platform** for Codex CLI and Claude Code. No account, cloud service, Docker, PostgreSQL or external API keys required. It reads explicitly authorized JSONL transcripts, retains encrypted evidence, merges events by native identifiers, and lets you browse execution history in a local web dashboard.
+A self-hosted **Next.js + React + TypeScript + Tailwind CSS** interface for Agent Trace, with a local Node.js API, SQLite source registry, evidence-first encrypted storage, and historical playback.
+
+The UI lives under `apps/web` and is built with composable React components. The existing capture, parsing, fusion and local evidence-storage engine is reused without exposing it to the network or cloud.
 
 ## Requirements
 
-- Node.js **22.13+** (the bundled `node:sqlite` module is available in recent Node 22 builds; Node may print an experimental SQLite warning).
-- macOS / Linux / Windows with a local JSONL directory.
+- **Node.js 22.13+**, npm 10+
+- macOS, Linux or Windows with explicit access to the Agent transcript folders
+- Internet is required **once for npm install**, but the platform uses **no cloud service at runtime**
 
-## Quick start — working demo
+## Run the complete framework MVP
 
 ```bash
-git clone https://github.com/Scoheart/trace.git
-cd trace
+npm install
+npm run dev
+```
+
+Open **http://127.0.0.1:4317**. The local UI and capture API share a single port and origin.
+
+To run the production build locally:
+
+```bash
+npm run build
+npm start
+```
+
+Optional local storage settings:
+
+```bash
+TRACE_PORT=4318 TRACE_STORE="$HOME/.agent-trace" npm run dev
+```
+
+Do not bind this app to public network interfaces; it is a single-user, unauthenticated local MVP.
+
+## Explore sample sessions
+
+```bash
 npm run import -- --agent codex --root ./fixtures/codex --consent
 npm run import -- --agent claude --root ./fixtures/claude --consent
-npm start
+npm run dev
 ```
 
-Open **http://127.0.0.1:4317**. There is no `npm install` step: the local MVP intentionally uses built-in Node.js modules, SQLite, HTML, CSS and JavaScript.
+Go to **Trace explorer** to view Session → timeline → Tool / MCP records → provenance → original encrypted evidence. Tool results are matched to Tool calls using native IDs where available; unknown categories are marked *not verified*.
 
-Alternatively, start with an empty local store and add your Agent directories through the **Data sources** panel:
+Go to **Data sources** to authorize a directory, import historical records and turn on automatic incremental scanning. The UI works with source directories you explicitly consent to; there is no system-wide scanning.
+
+Default directory examples:
 
 ```bash
-npm start
+# macOS and Linux examples — verify these are correct for your installed Agent version.
+# Codex
+$HOME/.codex/sessions
+# Claude Code
+$HOME/.claude/projects
 ```
 
-1. Open `http://127.0.0.1:4317`.
-2. Select **Data sources → Add a collector**.
-3. Choose Codex CLI or Claude Code, enter the absolute local transcript directory and explicitly grant access.
-4. Select **Connect source** to import history; enable auto-follow to collect subsequent JSONL records.
-5. Go to **Trace explorer** to inspect Sessions, tool calls/results, token events, raw evidence, and fusion conflicts.
+## Architecture
 
-Usual source directory candidates (verify them for your installed Agent version):
+```text
+ apps/web/ (Next.js 16, React 19, TypeScript, Tailwind 4)
+          │  same-origin localhost:4317
+          ▼
+ src/server.js (local Node HTTP API, CSRF + Host validation)
+      ├── src/source-registry.js → SQLite (node:sqlite)
+      ├── src/capture-service.js → authorized polling imports
+      ├── src/importer.js + adapters → Codex / Claude JSONL
+      ├── src/store.js → encrypted raw evidence + checkpoints
+      └── src/fusion.js → canonical historical trace projection
+```
 
-- **Codex**: `~/.codex/sessions`
-- **Claude Code**: `~/.claude/projects`
+The local `scripts/start-framework.mjs` uses Next.js's supported custom-server interface to host both Next routes and the capture API on **127.0.0.1**, without a proxy, Docker or a second service. This local-only custom server is **not** designed for serverless deployment; a future SaaS deployment should split the API from Next.
 
-The browser input needs an **absolute path**, not a literal `~` abbreviation. Nothing outside your chosen directory is scanned. You can still use the CLI:
+### Project layout
+
+- `apps/web/app/` — App Router pages (`/sessions`, `/sources`)
+- `apps/web/components/` — React screens, shadcn-style reusable UI primitives
+- `apps/web/lib/` — typed client API and canonical trace types
+- `src/` — unchanged privacy-sensitive capture/storage/fusion core
+- `test/` — capture, API, core fusion and framework boundary tests
+- `fixtures/` — synthetic sample transcripts (no real user content)
+
+## Validation
 
 ```bash
-npm run import -- --agent codex --root "$HOME/.codex/sessions" --consent
-npm run import -- --agent claude --root "$HOME/.claude/projects" --consent
-npm run follow -- --agent codex --root "$HOME/.codex/sessions" --consent
+npm test            # dependency-free capture/API tests
+npm run typecheck   # TypeScript (after npm install)
+npm run build       # Next.js production build (after npm install)
 ```
 
-For iterative local development:
+The previous `public/` HTML UI is retained as a **legacy test-only fallback** for `npm run legacy:serve`, so existing Node API tests remain valid. **The default `npm run dev` / `npm start` UI uses Next.js and React.**
 
-```bash
-npm run dev    # Node --watch, API + Dashboard + auto collector
-npm run verify # tests + syntax checks
-```
+## Security and limitations
 
-## MVP technology stack (all local)
-
-| Layer | Implementation | Persistence |
-| --- | --- | --- |
-| Web UI | Static HTML/CSS/JS dashboard | Browser only |
-| API | Node.js HTTP, loopback only | — |
-| Configuration + scan history | SQLite `node:sqlite` | `.trace-data/sources.sqlite` |
-| Capture runtime | Codex/Claude JSONL incremental adapter | SQLite source settings; checkpoints |
-| Evidence | AES-256-GCM / SHA-256 encrypted object files | `.trace-data/objects` |
-| Raw evidence index | Existing compatibility JSON index | `.trace-data/state.json` |
-| Trace reconstruction | Claim projection + conservative native-call fusion | Computed on view |
-| Background job | Interval-based same-process scan coordinator | SQLite run history |
-
-This is a deliberately **monolithic local MVP**: each tier exists and is runnable without separate services. It preserves clear internal boundaries (`source-registry`, `capture-service`, `importer`, `fusion`, `server`, `public`) so the system can later migrate to TypeScript/Next.js, PostgreSQL, cloud blob storage and a multi-tenant API without replacing the capture format.
-
-## Local HTTP endpoints
-
-| Endpoint | Use |
-| --- | --- |
-| `GET /api/bootstrap` | Local mode and per-process CSRF token |
-| `GET /api/overview` | Session, evidence and connected-source counters |
-| `GET /api/sources` | Registered local directories and scan status |
-| `POST /api/sources` | Register an explicitly authorized directory |
-| `POST /api/sources/:id/scan` | Import new records now |
-| `PATCH /api/sources/:id` | Enable/disable automatic scanning |
-| `DELETE /api/sources/:id` | Unregister a directory, retain historical evidence |
-| `GET /api/sources/:id/runs` | Recent scan outcomes and errors |
-| `GET /api/sessions` | Combined Agent session list |
-| `GET /api/sessions/:id/timeline` | Paginated canonical timeline + coverage |
-| `GET /api/evidence/:id` | Hash-verified retained source text |
-
-Writes require a short-lived CSRF header obtained from the local UI. Browser clients should prefer the built-in Dashboard rather than calling mutation endpoints manually.
-
-## Security and honest limitations
-
-- The HTTP server **only listens on `127.0.0.1`** and checks Host headers. **Never expose its port through a proxy, tunnel or public network**: this single-user MVP has no login system.
-- Directory registration requires explicit user consent. Data is never uploaded to cloud servers.
-- The app attempts to sanitize known secrets before encryption, but **best-effort redaction is not guaranteed**. The per-instance AES key is stored beside the ciphertext; it is not a password-derived secret or OS Keychain credential.
-- Removing a source does **not** delete previously captured transcripts. To delete all history, stop the app and remove its `.trace-data` directory.
-- Only Codex and Claude Code JSONL synthetic fixtures are regression-tested. Actual version compatibility and all L4 fields are **not guaranteed**. Hidden reasoning and events not exposed by Agents cannot be recovered.
-- The existing fusion limits (2,500 records or 128 MiB per session request) remain; large sessions return a clear error rather than incomplete results.
-- There is no hosted SaaS, no cross-device synchronization, no user accounts, and no arbitrary Agent execution. ZCode, OpenCode and Cursor adapters remain future work.
-
-Implementation decisions: [`docs/superpowers/specs/2026-10-25-local-mvp-design.md`](docs/superpowers/specs/2026-10-25-local-mvp-design.md).
+- Evidence is encrypted with AES-256-GCM, verified with SHA-256, and stays local. The encryption key is stored alongside local encrypted data, not in OS secure storage.
+- Sanitization is **best-effort**; do not expose the HTTP port beyond localhost or upload real transcripts publicly.
+- Only synthetic-fixture Codex CLI and Claude Code adapters have been tested. No ZCode/OpenCode adapter, cloud sync, SaaS tenancy or environment re-execution is implemented.
+- A session with over 2,500 raw records or over 128 MiB is rejected rather than silently truncated.
+- Not all L4 event types can be obtained from every third-party Agent. The UI displays observed evidence only and does not manufacture unavailable records.
