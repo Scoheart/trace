@@ -6,3 +6,8 @@ node_modules/
 .DS_Store
 *.log
 .superpowers/
+
+# Local SQLite and captured records are private; never commit them.
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

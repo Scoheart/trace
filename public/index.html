@@ -1,18 +1,39 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Agent Trace · L4 Historical Playback</title>
-<link rel="stylesheet" href="/styles.css"><script type="module" src="/app.js"></script>
+<title>Agent Trace · Local Dashboard</title>
+<link rel="stylesheet" href="/styles.css"><script type="module" src="/app.js"></script><script type="module" src="/sources.js"></script>
 </head><body>
-<header><div class="brand"><span class="mark">◈</span><span>AGENT TRACE</span><span class="tag">LOCAL PREVIEW</span></div><span class="headright"><span class="live"></span> 127.0.0.1 · Read-only</span></header>
-<main><aside><div class="sidehead"><div class="eyebrow">WORKSPACE</div><h2>Sessions</h2><p id="total">Loading...</p></div><div id="sessions" aria-label="Session list"></div><p class="disclaimer">Observed evidence only. Unrecorded agent internals cannot be reconstructed.</p></aside>
-<section class="content"><div class="hero"><div class="eyebrow">CAPTURE EXPLORER / HISTORICAL TRACE</div><h1 id="heading">Select a session</h1><p id="meta">Multi-source evidence fusion, causal links, conflicts and source provenance.</p></div>
+<header><div class="brand"><span class="mark">◈</span><span>AGENT TRACE</span><span class="tag">LOCAL MVP</span></div><span class="headright"><span class="live"></span> 127.0.0.1 · Read-only</span></header>
+<main id="appLayout"><aside><nav class="workspace-nav" aria-label="Main sections">
+<button type="button" id="navSessions" class="nav-link active" aria-current="page"><span>◷</span> Trace explorer</button>
+<button type="button" id="navSources" class="nav-link"><span>⬡</span> Data sources</button>
+</nav>
+<div class="sidehead"><div class="eyebrow">HISTORICAL RUNS</div><h2>Sessions</h2><p id="total">Loading...</p></div><div id="sessions" aria-label="Session list"></div><p class="disclaimer">Observed evidence only. Unrecorded agent internals cannot be reconstructed.</p></aside>
+<section class="content" id="traceView"><div class="hero"><div class="eyebrow">CAPTURE EXPLORER / HISTORICAL TRACE</div><h1 id="heading">Select a session</h1><p id="meta">Multi-source evidence fusion, causal links, conflicts and source provenance.</p></div>
 <div class="summary"><div><span class="metric-label">SOURCE</span><strong id="agent">—</strong></div><div><span class="metric-label">RAW RECORDS</span><strong id="count">—</strong></div><div><span class="metric-label">CANONICAL EVENTS</span><strong id="eventsMetric">—</strong></div></div>
 <div class="coverage"><p id="coverage">Choose a session to inspect captured categories.</p><small id="observability">Completeness requires version-specific coverage verification.</small></div>
 <div class="toolbar"><span>OBSERVED TIMELINE</span><span class="warning">● Captured only · no invented steps</span></div>
 <div class="filters"><label for="filterKind">Event type</label><select id="filterKind"><option value="all">All events</option><option value="tool">Tools & MCP</option><option value="conversation">Conversation</option><option value="usage">Token usage</option><option value="errors">Errors</option></select><label for="timelineSearch">Search loaded events</label><input id="timelineSearch" type="search" autocomplete="off" placeholder="Tool, Prompt, content…"><span id="visibleCount"></span></div>
 <div id="notice" role="alert"></div><div id="events"><div class="empty">Choose a session from the left sidebar.</div></div>
 <button id="loadMore" hidden>Load more events</button>
-</section><aside class="details"><div class="eyebrow">INSPECTOR</div><h2>Evidence details</h2><p id="hint">Select any captured step to inspect its content and provenance.</p><div id="details"></div></aside></main>
+</section><aside class="details" id="inspector"><div class="eyebrow">INSPECTOR</div><h2>Evidence details</h2><p id="hint">Select any captured step to inspect its content and provenance.</p><div id="details"></div></aside>
+<section id="sourceManagement" class="source-view" hidden>
+ <div class="eyebrow">CAPTURE ENGINE / LOCAL SOURCES</div>
+ <div class="source-intro"><div><h1>Connect your agents</h1><p>Register a transcript directory and collect history automatically. All records stay on your computer.</p></div><div class="local-label"><span class="live"></span> LOCAL ONLY · NO CLOUD UPLOAD</div></div>
+ <div class="source-stats" aria-live="polite"><div><span>SESSIONS</span><strong id="statSessions">0</strong></div><div><span>RAW RECORDS</span><strong id="statEvidence">0</strong></div><div><span>CONNECTED SOURCES</span><strong id="statSources">0</strong></div><div><span>AUTO-FOLLOWING</span><strong id="statFollowing">0</strong></div></div>
+ <div class="source-columns"><section class="source-card"><div class="eyebrow">01 / NEW SOURCE</div><h2>Add a collector</h2><p class="muted">Select an Agent and its authorized local JSONL directory. We never scan other folders.</p>
+   <form id="addSourceForm">
+     <label for="sourceAgent">Agent provider</label><select id="sourceAgent" name="agent"><option value="codex">Codex CLI</option><option value="claude">Claude Code</option></select>
+     <label for="sourceRoot">Absolute directory path</label><input id="sourceRoot" name="root" required autocomplete="off" spellcheck="false" placeholder="/Users/you/.codex/sessions" />
+     <label class="checkrow"><input type="checkbox" id="sourceAuto" checked /> Keep collecting new records</label>
+     <label class="checkrow consent"><input type="checkbox" id="sourceConsent" required /> I authorize reading transcript files in this directory, including code and prompts.</label>
+     <button type="submit" id="addSourceButton" class="primary-btn">+ Connect source</button>
+   </form><p id="sourceStatus" class="source-status" role="alert"></p>
+ </section>
+ <section class="source-card"><div class="eyebrow">02 / REGISTERED COLLECTORS</div><h2>Data sources</h2><p class="muted">Scan manually, toggle auto-follow or remove a directory. Removing it never deletes evidence.</p><div id="sourceList" aria-live="polite"><div class="source-empty">No sources connected yet.</div></div></section></div>
+ <div class="source-note-grid"><div><strong>Evidence-first</strong><p>Raw records are sanitized before AES-GCM encryption and preserved for future parser upgrades.</p></div><div><strong>Truthful coverage</strong><p>A missing Agent event is marked unverified; the timeline never invents missing steps.</p></div><div><strong>Single-user MVP</strong><p>Loopback-only with CSRF protection. No public access, account system or cloud sync.</p></div></div>
+</section>
+</main>
 <footer>Sanitized and encrypted local records · No cloud upload · Display only; no execution replay</footer>
 </body></html>

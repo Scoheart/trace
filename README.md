@@ -1,48 +1,97 @@
-# Agent Trace Platform
+# Agent Trace — Local Full-Stack MVP
 
-Local-first, consent-based historical trace prototype for Codex CLI and Claude Code (Node.js 22+). It imports JSONL transcripts, retains sanitized AES-256-GCM encrypted evidence and exposes a provenance-aware historical playback UI. The included samples are **synthetic**. This is **not** the complete multi-agent L4 SaaS product.
+A self-hosted, **single-user local Agent Trace platform** for Codex CLI and Claude Code. No account, cloud service, Docker, PostgreSQL or external API keys required. It reads explicitly authorized JSONL transcripts, retains encrypted evidence, merges events by native identifiers, and lets you browse execution history in a local web dashboard.
 
-## Try it
+## Requirements
+
+- Node.js **22.13+** (the bundled `node:sqlite` module is available in recent Node 22 builds; Node may print an experimental SQLite warning).
+- macOS / Linux / Windows with a local JSONL directory.
+
+## Quick start — working demo
 
 ```bash
-npm test
+git clone https://github.com/Scoheart/trace.git
+cd trace
 npm run import -- --agent codex --root ./fixtures/codex --consent
 npm run import -- --agent claude --root ./fixtures/claude --consent
 npm start
 ```
 
-Visit http://127.0.0.1:4317. Real local data may be imported by explicitly specifying your own authorized session root, for example:
+Open **http://127.0.0.1:4317**. There is no `npm install` step: the local MVP intentionally uses built-in Node.js modules, SQLite, HTML, CSS and JavaScript.
+
+Alternatively, start with an empty local store and add your Agent directories through the **Data sources** panel:
 
 ```bash
-node src/cli.js import --agent codex --root "$HOME/.codex/sessions" --consent
-node src/cli.js import --agent claude --root "$HOME/.claude/projects" --consent
-node src/cli.js follow --agent codex --root "$HOME/.codex/sessions" --consent --interval 3000
+npm start
 ```
 
-Paths above are examples, not automatic discovery. Do not scan locations you do not own or intend to authorize.
+1. Open `http://127.0.0.1:4317`.
+2. Select **Data sources → Add a collector**.
+3. Choose Codex CLI or Claude Code, enter the absolute local transcript directory and explicitly grant access.
+4. Select **Connect source** to import history; enable auto-follow to collect subsequent JSONL records.
+5. Go to **Trace explorer** to inspect Sessions, tool calls/results, token events, raw evidence, and fusion conflicts.
 
-## Implemented
+Usual source directory candidates (verify them for your installed Agent version):
 
-- Byte-offset checkpointing, JSONL rotation/truncation safeguards, batching, restart-safe import, and incomplete-line deferral.
-- Deterministic evidence IDs, SHA-256 verification and encrypted at-rest blobs. Redaction happens before storage and is **best effort only**.
-- Historical session association, provenance-aware event claims, duplicate native tool call/result matching and conflict preservation.
-- Causal call/result relationships only where supported by native call IDs, not timestamps.
-- Read-only session timeline viewer with source drilldown, local filtering, observed vs unknown coverage, and raw evidence verification.
-- Built-in Node.js tests and GitHub Actions CI.
+- **Codex**: `~/.codex/sessions`
+- **Claude Code**: `~/.claude/projects`
 
-## HTTP API
+The browser input needs an **absolute path**, not a literal `~` abbreviation. Nothing outside your chosen directory is scanned. You can still use the CLI:
 
-- `GET /api/sessions`
-- `GET /api/sessions/:sessionId/timeline?offset=0&limit=100`
-- `GET /api/evidence/:evidenceId`
-- `GET /api/sessions/:sessionId` (legacy projection)
+```bash
+npm run import -- --agent codex --root "$HOME/.codex/sessions" --consent
+npm run import -- --agent claude --root "$HOME/.claude/projects" --consent
+npm run follow -- --agent codex --root "$HOME/.codex/sessions" --consent
+```
 
-The timeline explicitly rejects a session above 2,500 raw records or 128 MiB rather than pretending to show complete results.
+For iterative local development:
 
-## Security & limits
+```bash
+npm run dev    # Node --watch, API + Dashboard + auto collector
+npm run verify # tests + syntax checks
+```
 
-The unauthenticated viewer **only binds to 127.0.0.1** and must never be exposed through a tunnel or port forwarding. No cloud upload or remote access is implemented. A local encryption key is stored beside the ciphertext, not in the operating system Keychain. Redaction is not guaranteed to catch every secret and private source code may remain. Never commit actual session transcripts.
+## MVP technology stack (all local)
 
-The test suite uses synthetic fixtures; present-day vendor versions, full L4 coverage, closed-source internals, ZCode, OpenCode, cloud account import and production multi-user SaaS are **not verified/implemented**. The browser E2E smoke test (`python test/e2e_viewer.py`) requires Playwright + Chromium; it is optional and not included in `npm test`.
+| Layer | Implementation | Persistence |
+| --- | --- | --- |
+| Web UI | Static HTML/CSS/JS dashboard | Browser only |
+| API | Node.js HTTP, loopback only | — |
+| Configuration + scan history | SQLite `node:sqlite` | `.trace-data/sources.sqlite` |
+| Capture runtime | Codex/Claude JSONL incremental adapter | SQLite source settings; checkpoints |
+| Evidence | AES-256-GCM / SHA-256 encrypted object files | `.trace-data/objects` |
+| Raw evidence index | Existing compatibility JSON index | `.trace-data/state.json` |
+| Trace reconstruction | Claim projection + conservative native-call fusion | Computed on view |
+| Background job | Interval-based same-process scan coordinator | SQLite run history |
 
-See `docs/STATUS.md` and `docs/COMPATIBILITY.md`.
+This is a deliberately **monolithic local MVP**: each tier exists and is runnable without separate services. It preserves clear internal boundaries (`source-registry`, `capture-service`, `importer`, `fusion`, `server`, `public`) so the system can later migrate to TypeScript/Next.js, PostgreSQL, cloud blob storage and a multi-tenant API without replacing the capture format.
+
+## Local HTTP endpoints
+
+| Endpoint | Use |
+| --- | --- |
+| `GET /api/bootstrap` | Local mode and per-process CSRF token |
+| `GET /api/overview` | Session, evidence and connected-source counters |
+| `GET /api/sources` | Registered local directories and scan status |
+| `POST /api/sources` | Register an explicitly authorized directory |
+| `POST /api/sources/:id/scan` | Import new records now |
+| `PATCH /api/sources/:id` | Enable/disable automatic scanning |
+| `DELETE /api/sources/:id` | Unregister a directory, retain historical evidence |
+| `GET /api/sources/:id/runs` | Recent scan outcomes and errors |
+| `GET /api/sessions` | Combined Agent session list |
+| `GET /api/sessions/:id/timeline` | Paginated canonical timeline + coverage |
+| `GET /api/evidence/:id` | Hash-verified retained source text |
+
+Writes require a short-lived CSRF header obtained from the local UI. Browser clients should prefer the built-in Dashboard rather than calling mutation endpoints manually.
+
+## Security and honest limitations
+
+- The HTTP server **only listens on `127.0.0.1`** and checks Host headers. **Never expose its port through a proxy, tunnel or public network**: this single-user MVP has no login system.
+- Directory registration requires explicit user consent. Data is never uploaded to cloud servers.
+- The app attempts to sanitize known secrets before encryption, but **best-effort redaction is not guaranteed**. The per-instance AES key is stored beside the ciphertext; it is not a password-derived secret or OS Keychain credential.
+- Removing a source does **not** delete previously captured transcripts. To delete all history, stop the app and remove its `.trace-data` directory.
+- Only Codex and Claude Code JSONL synthetic fixtures are regression-tested. Actual version compatibility and all L4 fields are **not guaranteed**. Hidden reasoning and events not exposed by Agents cannot be recovered.
+- The existing fusion limits (2,500 records or 128 MiB per session request) remain; large sessions return a clear error rather than incomplete results.
+- There is no hosted SaaS, no cross-device synchronization, no user accounts, and no arbitrary Agent execution. ZCode, OpenCode and Cursor adapters remain future work.
+
+Implementation decisions: [`docs/superpowers/specs/2026-10-25-local-mvp-design.md`](docs/superpowers/specs/2026-10-25-local-mvp-design.md).
