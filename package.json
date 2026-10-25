@@ -1,0 +1,13 @@
+{
+  "name": "agent-trace-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "node src/cli.js serve",
+    "import": "node src/cli.js import",
+    "follow": "node src/cli.js follow"
+  }
+}
