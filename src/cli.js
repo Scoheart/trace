@@ -13,7 +13,7 @@ function parse(argv){
   }
   return args;
 }
-const help=`Agent Trace local-first prototype (Node.js 22+)\n\n  node src/cli.js import --agent codex|claude --root /explicit/agent/sessions --consent [--store .trace-data]\n  node src/cli.js follow --agent codex|claude --root /explicit/agent/sessions --consent [--interval 3000]\n  node src/cli.js serve [--port 4317] [--store .trace-data]\n\n  The --consent flag authorizes reading files in --root. No cloud upload is implemented.\n  The server binds exclusively to 127.0.0.1; recorded content is redacted and encrypted locally.\n`;
+const help=`Agent Trace local-first MVP (Node.js 22+)\n\n  node src/cli.js import --agent codex|claude --root /explicit/agent/sessions --consent [--store .trace-data]\n  node src/cli.js follow --agent codex|claude --root /explicit/agent/sessions --consent [--interval 3000]\n  node src/cli.js serve [--port 4317] [--store .trace-data]  # dashboard, REST API and auto collector\n\n  The --consent flag authorizes reading files in --root. No cloud upload is implemented.\n  The server binds exclusively to 127.0.0.1; recorded content is redacted and encrypted locally.\n`;
 async function main(){
   const [cmd,...rest]=process.argv.slice(2);const args=parse(rest);
   if(!cmd||args.help){console.log(help);return;}
@@ -23,7 +23,7 @@ async function main(){
     if(!Number.isSafeInteger(port)||port<0||port>65535)throw Error('Invalid port');
     const server=await createServer({storeDir});
     await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
-    console.log(`Agent Trace viewer: http://127.0.0.1:${server.address().port}`);
+    console.log(`Agent Trace local dashboard: http://127.0.0.1:${server.address().port}`);
     return;
   }
   if(cmd==='import'||cmd==='follow'){

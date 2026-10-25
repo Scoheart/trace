@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  --color-background: #0c121c;
+}
+
+* { box-sizing: border-box; }
+html { background: #0c121c; }
+body { margin: 0; font-family: var(--font-sans); }
+button, input, select { font: inherit; }
+pre, code { tab-size: 2; }
+::selection { background-color: rgba(34,211,238,.22); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0e1622; }
+::-webkit-scrollbar-thumb { background: #374252; border-radius: 8px; }
