@@ -3,7 +3,9 @@
   "version": "0.3.0",
   "private": true,
   "type": "module",
-  "engines": {"node": ">=22.13.0"},
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "node scripts/start-framework.mjs --dev",
     "build": "next build apps/web",
@@ -21,7 +23,9 @@
     "react-dom": "19.3.1",
     "lucide-react": "^1.56.0",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "@base-ui/react": "1.9.0",
+    "@radix-ui/react-collapsible": "1.2.1"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
